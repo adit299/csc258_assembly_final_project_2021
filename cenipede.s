@@ -114,7 +114,6 @@ init_centipede_movement:
 	sw $ra, 0($sp) # Push the contents of the current instruction to the top of the stack
 
 
-
 	# main centipede movement while loop
 	while_init_centipede_movement: beqz $t1, end_init_centipede_movement # if centipede lives is at 0, its game over, otherwise keep moving it 
 		# load the centipede lives value stored in RAM to a function register value 
@@ -154,26 +153,32 @@ init_centipede_movement:
 				  	j start_check_right_boundary    
 		
 		#if centipede head at right boundary 
-		if_centipede_right_boundary:
-			add $t3, $t3, $zero
-			add $t4, $t4, 10
-			
+		if_centipede_right_boundary:	
 			# move the stack pointer back to pointing at the top, after the init_centipede_movement calls 
 			addi $sp, $sp, 4	
 			sw $ra, 0($sp) # Push the contents of the current instruction to the top of the stack
 			
 			j update_centipede_down_right # move the centipede in zig-zag fashion when it reaches the right side boundary  
 			
-			
 		# moves the centipede to the left until the centipede reaches a left boundary 	
 		move_centipede_left:
-		
-				
+			jal set_movement_left # sets the direction array to have all negative terms 
 			
+			# make this a while loop that will move the centipede left until it reaches a boundary 
+			li $s1, 0
+			li $s2, 22
+			# if the centipede reaches the left boundary, branch to the left boundary movement case 
+			left_movement_while_loop: 
+				beq $s1, $s2, if_centipede_left_boundary
+				j moving_centipede_left # moves the centipede left
+				finish_centipede_left_update: addi, $s1, $s1, 1 #after moving the centipede left, we move back to this spot 
+				j left_movement_while_loop	
 		
-		#if centipede head at left boundary 
+		# if centipede head at left boundary
+		# moves the centipede in a zig-zag fashion when it reaches the left boundary, preparing it to move rightwards after that point 
 		if_centipede_left_boundary:
-		
+			j update_centipede_down_left # moves the centipede in a zig-zag fashion at a left boundary 
+			
 
 		#if centipede head has reached the bottom (leftmost part of bottom row or rightmost part of bottom row)
 		if_centipede_bottom:
@@ -188,7 +193,123 @@ init_centipede_movement:
 	end_init_centipede_movement:
 		# game over screen?
 
+# moves the centipede in zig-zag fashion at the left boundary
+update_centipede_down_left:
+	init_for_loop_left: # for m in range(10)
+		add $s4, $zero, $zero
+		add $s5, $zero, 10 # there variables will be used for the initialization and running of the for loop
+		# use a register to keep track of the part of by how much the current centipede part is wriggling 
+		# downward by
+	 	addi $s1, $zero, 32 #val 
+		#use a register to keep track of which entries we will iterate by 1, this will start at value 0 (first value) and gradually go up by 1 each time from that point (0, 1, ...)
+		li $s2, 0 #j
+	start_for_loop_update_left:
+		la $a2, centipedDirection
+		beq $s4, $s5, end_for_loop_update_left
+		# centipede_dir_array[j] = val 
+		sll $t6, $s2, 2
+		add $a2, $a2, $t6
+		sw $s1, 0($a2)
+		# k = 0
+		li $t5, 0
+		# while k < j:
+		update_left_while_loop:
+			beq $t5, $s2, update_left_variables
+			# centipede_dir_array[k] = 0
+			la $a2, centipedDirection
+			sll $t7, $t5, 2
+			add $a2, $a2, $t7
+			sw $zero, 0($a2)
+			addi $t5, $t5, 1
+			j update_left_while_loop
 		
+	update_left_variables:
+		addi $s1, $s1, 1
+		addi $s2, $s2, 1
+		addi $s4, $s4, 1
+		jal move_centipede_left 
+		j start_for_loop_update_left 
+		
+	end_for_loop_update_left:
+		j while_init_centipede_movement
+		
+		
+# changes all the entries of the centipede movement array to -1, so that the centipede is moving left 
+set_movement_left:
+	# load in registers with value 0 and 10, to represent iterating through each of the entries 
+	# of the centipedeDirection array
+	li $t0, 0
+	li $t1, 10
+	li $t3, -1
+	
+	# while loop to set all the elements of direction array to -1 
+	
+	while_set_movement_left:
+		beq $t0, $t1, end_movement_left
+		# re-load the address so that the pointer is back at the initial element 
+		la $a2, centipedDirection
+		# multiply the current iteration element by 4 for byte offset 
+		sll $t2, $t0, 2 
+		# add this value to the centipedeDirection array, so that it is pointing to next element 
+		add $a2, $a2, $t2
+		# store a value of -1 into this position of the centipedeDirArray 
+		sw $t3, 0($a2)
+		# iterate $t0 by 1 
+		addi $t0, $t0, 1
+		# jump back to the beginning of the while loop
+		j while_set_movement_left 
+		
+	end_movement_left:
+		jr $ra
+	
+# function in charge of moving the centipede left until it reaches a left boundary 
+moving_centipede_left:
+	addi $sp, $sp, -4 # Move the stack pointer one point downwards from where it is currently pointing (pop) 
+	sw $ra, 0($sp) # Push the contents of the current instruction to the top of the stack
+
+	# re-load both the centipedLocation and centipedDirection arrays 
+	la $a1, centipedLocation 
+	la $a2, centipedDirection
+	
+	#clear the tail end of the centipede, before moving it to the right 
+	
+	# retrieve the displayAddress in the $t7 register
+	lw $t7, displayAddress
+	# store the value of the first entry in the centipedLocation array
+	lw $t6, 36($a1)
+	# multiply this value by 4, since each of the pixels are 4 bytes
+	sll $t6, $t6, 2
+	# add the centipedOffset by display address to get the exact address of the tail end of the centipede 
+	add $t1, $t7, $t6
+	
+	# store a value of black into this memory address
+	li $t9, 0x000000
+	sw $t9, 0($t1) 
+	
+	# we iterate through each of the 10 locations of the centipede body, and update each of them by adding one to each of the locations 	
+	addi $t2, $zero, 10
+	add $t3, $zero, $zero
+	
+	while_move_centipede_left: beq $t2, $t3, end_left
+		lw $t1, 0($a1)		# load a word from the centipedLocation array into $t1
+		lw $t5, 0($a2)		# load a word from the centipedDirection  array into $t5
+		add $t6, $t1, $t5	# add both of these words together  
+		sw $t6, 0($a1)		# store the sum in the centipedLocation array
+		addi $a1, $a1, 4	# iterate the current pointer in the centipedLocation array by 1 
+		addi $a2, $a2, 4	# iterate the current pointer in the centipedDirection array by 1
+		addi $t3, $t3, 1	# iterate the counter by 1 
+		j while_move_centipede_left
+			
+	end_left: jal disp_centiped # after displaying the centipede, move back to the for loop
+		  j finish_centipede_left_update
+	     # pop a word off the stack and move the stack pointer
+	     #lw $ra, 0($sp)
+	     #addi $sp, $sp, 4
+	     #jr $ra
+	     
+	
+
+
 #moves the centipede down when it is at a right boundary 
 update_centipede_down_right:		
 	init_for_loop: # for m in range(10)
