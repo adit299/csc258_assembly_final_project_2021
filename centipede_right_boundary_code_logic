@@ -1,0 +1,26 @@
+centipede_right_boundary logic 
+
+
+centipede_location_array = [22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+centipede_dir_array = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+
+val = 31
+j = 9
+
+
+for m in range(10):
+        centipede_dir_array[j] += val
+        if(9 - j > 0):
+                k = j + 1
+                while k < 10:
+                        centipede_dir_array[k] = 0
+                        k += 1
+        val -= 1
+        j -= 1
+        
+        // this part of the code is taken care of by move_centipede (not needed to be implemented in 	       update_centipede_down_right)
+         
+        for i in range(len(centipede_location_array)):
+                centipede_location_array[i] += centipede_dir_array[i]
+        
+        print(centipede_location_array)
