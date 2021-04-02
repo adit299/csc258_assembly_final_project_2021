@@ -161,11 +161,15 @@ init_centipede_movement:
 			# move the stack pointer back to pointing at the top, after the init_centipede_movement calls 
 			addi $sp, $sp, 4	
 			sw $ra, 0($sp) # Push the contents of the current instruction to the top of the stack
+			
+			j update_centipede_down_right # move the centipede in zig-zag fashion when it reaches the right side boundary  
+			
+			
+		# moves the centipede to the left until the centipede reaches a left boundary 	
+		move_centipede_left:
+		
 				
-			jal update_centipede_down_right
-				
-			end_right_update:
-					j while_init_centipede_movement 
+			
 		
 		#if centipede head at left boundary 
 		if_centipede_left_boundary:
@@ -188,8 +192,8 @@ init_centipede_movement:
 #moves the centipede down when it is at a right boundary 
 update_centipede_down_right:		
 	init_for_loop: # for m in range(10)
-		       add $t4, $zero, $zero
-		       add $t5, $zero, 10 # there variables will be used for the initialization and running of the for loop
+		       add $s4, $zero, $zero
+		       add $s5, $zero, 10 # there variables will be used for the initialization and running of the for loop
 		       # use a register to keep track of the part of by how much the current centipede part is wriggling 
 		       # downward by
 	 	       addi $s1, $zero, 31 #val 
@@ -198,7 +202,7 @@ update_centipede_down_right:
 	start_for_loop: 
 			#retrieve the centipedDirection arrays
 			la $a2, centipedDirection
-			beq $t4, $t5, exit_for_loop
+			beq $s4, $s5, exit_for_loop
 			#centipede_dir_array[j] += val
 			sll $t6, $s2, 2 # do 9*4, to calculate the offset value for the 9th element in the centiped dir array
 			add $a2, $t6, $a2 # add this value to $a2 (pointer to first element in the array), so that we are currently 
@@ -232,17 +236,16 @@ update_centipede_down_right:
 						addi $s1, $s1, -1
 						addi $s2, $s2, -1
 						j update_for_loop
-	update_for_loop: addi $t4, $t4, 1	
-			 addi $sp, $sp, -4 # Move the stack pointer one point downwards from where it is currently pointing (pop) 
-			 sw $ra, 0($sp) # Push the contents of the current instruction to the top of the stack
+	update_for_loop: addi $s4, $s4, 1	
+			 #addi $sp, $sp, -4 # Move the stack pointer one point downwards from where it is currently pointing (pop) 
+			 #sw $ra, 0($sp) # Push the contents of the current instruction to the top of the stack
 			 jal move_centipede 
 			 j start_for_loop
 	
-	exit_for_loop: jr $ra 
-		     
-		 	
-		    			
-
+	exit_for_loop: 
+		 	j move_centipede_left 
+		     		 	
+		
 # function used in moving the centipede one location from where it currently is (either one spot right, down, or left)
 # (note on its own, all this function does is add the array values of centipedDirection to centipedLocation array and save those 
 # values. A call to displayCentiped is required to display the centipede)
