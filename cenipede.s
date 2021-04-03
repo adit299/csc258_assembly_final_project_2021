@@ -33,7 +33,7 @@
 	displayAddress:	.word 0x10008000
 	bugLocation: .word 814 # location of the bug blaster 
 	centipedLives : .word 3 #Stores how many lives the centipede currently has 
-	centipedLocation: .word 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 #Array of values 
+	centipedLocation: .word 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 #stores where currently the centiped is within the display map 
 	centipedDirection: .word 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 #1 means all segments are moving to the right, while -1 means it is to the left 
 .text 
 
@@ -78,7 +78,7 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	lw $t5, 0($a2)		 # load a word from the centipedDirection  array into $t5
 	#####
 	lw $t2, displayAddress  # $t2 stores the base address for display
-	li $t3, 0xff0000	# $t3 stores the red colour code
+	li $t3, 0xff0000	# $t3 stores the red colour code     
 		
 	sll $t4,$t1, 2		# $t4 is the bias of the old body location in memory (offset*4) (shift the value in register $t1 by 2 bits to the left and store it in $t4)
 				# Why is this line needed? It is because each location in the display array is comprised of 4 bytes, so we load the centipede location values, and 
@@ -95,41 +95,38 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	# depending on whether the centipede is moving to the right or to the left, the head we repaint will be a different color 
 	# Registers available after the above code has executed: $a3 = 1, $a1 = -1, $a2(centipedDirection), $t1(first term of centipedDirection), $t5 (color yellow), $t2 (displayAddress), $t3 (last term of centipedDirection), $t4.
 
-	lw $t2, displayAddress # store display address within register $t2
+	#lw $t2, displayAddress # store display address within register $t2
 	
-	la $a2, centipedDirection # store address of centipedDirection array 
-	la $a1, centipedLocation 
+	#la $a2, centipedDirection # store address of centipedDirection array 
+	#la $a1, centipedLocation 
 	
 	# load the first and last terms of the centipede dir array into seperate registers 
-	lw $t1, 0($a2)	# contains the first term of the centipedDirection array
-	lw $t3, 36($a2) # contains the last term of the centipedDIrection array 
+	#lw $s7, 0($a2)	# contains the address of the first term of the centipedDirection array
+	#lw $t3, 36($a2) # contains the address of the last term of the centipedDirection array 
 	
-	li $a3, 1 # comparison registers  
-	li $s6, -1
+	#li $a3, 1 # comparison registers  
+	#li $s6, -1
 	
 	# choose a register, and store the color of the centipede head
-	li $t5, 0xffff00 
-	
-	# load in the address of the centipede direction array
-	la $t4, centipedLocation
-	
-	beq $t1, $a3, centipede_moving_right # if first term of centipede direction array is equal to 1, branch to centipede_moving_right
-	beq $t3, $s6, centipede_moving_left  # if last term of centipede direction array equals -1, branch to centipede_moving_left 
-	
-	centipede_moving_right:
-		# retrieve the last value of the centipede location array 
-		lw $s5, 36($a1) # register $s5 contains the value of the head of the centipede
-		sll $s5, $s5, 2 # multiply this value by 4, for byte offset 
-		add $t2, $t2, $s5 # add to display address to figure out wihch value to overwrite with the color  
-		sw $t5, 0($t2) # store the value of yellow within this register, so that the head is colored yellow
-		j finish_disp_centiped
+	#li $t5, 0xffff00 
 		
-	centipede_moving_left:
-		lw $s5, 0($a1) # register $t8 contains the value of the head of the centipede
-		sll $s5, $s5, 2 # multiply this value by 4, for byte offset 
-		add $t2, $t2, $s5 # add to display address to figure out wihch value to overwrite with the color  
-		sw $t5, 0($t2) # store the value of yellow within this register, so that the head is colored yellow
-		j finish_disp_centiped
+	#beq $s7, $a3, centipede_moving_right # if first term of centipede direction array is equal to 1, branch to centipede_moving_right
+	#beq $t3, $s6, centipede_moving_left  # if last term of centipede direction array equals -1, branch to centipede_moving_left 
+	
+	#centipede_moving_right:
+		# retrieve the last value of the centipede location array 
+		#lw $s5, 36($a1) # register $s5 contains the value of the head of the centipede
+		#sll $s5, $s5, 2 # multiply this value by 4, for byte offset 
+		#add $t2, $t2, $s5 # add to display address to figure out wihch value to overwrite with the color  
+		#sw $t5, 0($t2) # store the value of yellow within this register, so that the head is colored yellow
+		#j finish_disp_centiped
+		
+	#centipede_moving_left:
+		#lw $s5, 0($a1) # register $t8 contains the value of the head of the centipede
+		#sll $s5, $s5, 2 # multiply this value by 4, for byte offset 
+		#add $t2, $t2, $s5 # add to display address to figure out wihch value to overwrite with the color  
+		#sw $t5, 0($t2) # store the value of yellow within this register, so that the head is colored yellow
+		#j finish_disp_centiped
 	
 	
 	# pop a word off the stack and move the stack pointer
@@ -166,29 +163,35 @@ init_centipede_movement:
 		addi $a1, $a1, 36
 		lw $t2, 0($a1)
 		
-		# check if the centipede head is at the bottom and branch to the bottom if so, if not move on to checking if it is at one of the boundaries
-		beq $t2, 800, if_centipede_bottom
-		beq $t2, 831, if_centipede_bottom
 		
+		# load in the address of the tail of the centipede 
+		la $a1, centipedLocation
+		lw $s0, 36($a1)
+		
+		# check if the centipede head is at the bottom and branch to the bottom if so, if not move on to checking if it is at one of the boundaries
+		jal check_centipede_at_bottom
+		
+		 
+		   
 		# for loops to check which boundary the centipede head is currently falling under
 		
 		# check to see if centipede head is at the left boundary 
-		#check_left_boundary: add $t3, $zero, $zero
-		#      		     addi $t4, $t4, 992
-		#      		     addi $t5, $t5, 0
-		#      		     addi $t6, $t6, 31
-		#start_check_left_boundary: beq $t3, $t2, if_centipede_left_boundary
-		 #      			   beq $t5, $t6, check_right_boundary  
-		#update_variables_left: addi $t3, $t3, 32
-		#        	       addi $t5, $t5, 1
-		#       	       j start_check_left_boundary
+		check_left_boundary: add $t3, $zero, $zero
+		      		     addi $t4, $zero, 992
+		      		     addi $t5, $t5, 0
+		      		     addi $t6, $t6, 31
+		start_check_left_boundary: beq $t3, $s0, if_centipede_left_boundary
+		       			   beq $t5, $t6, check_right_boundary  
+		update_variables_left: addi $t3, $t3, 32
+			       	       addi $t5, $t5, 1
+			       	       j start_check_left_boundary
 		
 		# check to see if the centipede head is at the right boundary
 		check_right_boundary: addi $t3, $zero, 31
-		      		      addi $t4, $t4, 1023
+		      		      addi $t4, $zero, 1023
 		      		      li $t5, 0
 		      		      li $t6, 31
-		start_check_right_boundary: beq $t3, $t2, if_centipede_right_boundary
+		start_check_right_boundary: beq $t3, $s0, if_centipede_right_boundary
 		       			    beq $t5, $t6, else_init_centipede_movement # left and right boundaries are checked, centipede head is not there, so we continue movement  
 		update_variables_right: addi $t3, $t3, 32
 				 	addi $t5, $t5, 1
@@ -221,11 +224,9 @@ init_centipede_movement:
 		if_centipede_left_boundary:
 			j update_centipede_down_left # moves the centipede in a zig-zag fashion at a left boundary 
 			
-
 		#if centipede head has reached the bottom (leftmost part of bottom row or rightmost part of bottom row)
 		if_centipede_bottom:
-			
-		
+			jal move_centipede
 		
 		#else move the centipede accoring to the value within direction array
 		else_init_centipede_movement:
@@ -236,6 +237,27 @@ init_centipede_movement:
 	end_init_centipede_movement:
 		# game over screen?
 
+# checks if the centipede is at the bottom of the screen
+check_centipede_at_bottom:
+	# load in the address of the location of the head of the centipede
+	la $a1, centipedLocation
+	addi $a1, $a1, 36
+	lw $t2, 0($a1)
+			
+	# load in the address of the tail of the centipede 
+	la $a1, centipedLocation
+	lw $s0, 36($a1)
+		
+	# check if the centipede head is at the bottom and branch to the bottom if so, if not move on to checking if it is at one of the boundaries
+	beq $t2, 800, if_centipede_bottom
+	beq $s0, 800, if_centipede_bottom
+		
+	beq $t2, 831, if_centipede_bottom
+	beq $s0, 831, if_centipede_bottom 
+	
+	# if centipede not found, return to where this function was called 
+	jr $ra
+	
 # moves the centipede in zig-zag fashion at the left boundary
 update_centipede_down_left:
 	init_for_loop_left: # for m in range(10)
@@ -376,6 +398,7 @@ moving_centipede_left:
 	end_left: jal disp_centiped # after displaying the centipede, move back to the for loop
 		  #j finish_centipede_left_update
 	     	  # pop a word off the stack and move the stack pointer
+	     	  jal check_centipede_at_bottom 
 	     	  lw $ra, 0($sp)
 	     	  addi $sp, $sp, 4
 	     	  jr $ra
@@ -437,7 +460,7 @@ update_centipede_down_right:
 	exit_for_loop: 
 		 	j move_centipede_left 
 		     		 	
-		
+		     		 			
 # function used in moving the centipede one location from where it currently is (either one spot right, down, or left)
 # (note on its own, all this function does is add the array values of centipedDirection to centipedLocation array and save those 
 # values. A call to displayCentiped is required to display the centipede)
@@ -479,6 +502,8 @@ move_centipede:
 		j while_move_centipede
 			
 	end: jal disp_centiped
+	     # after displaying the centipede, check if the centipede has reached the bottom
+	     jal check_centipede_at_bottom
 	     # pop a word off the stack and move the stack pointer
 	     lw $ra, 0($sp)
 	     addi $sp, $sp, 4
