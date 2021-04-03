@@ -170,7 +170,7 @@ init_centipede_movement:
 			# if the centipede reaches the left boundary, branch to the left boundary movement case 
 			left_movement_while_loop: 
 				beq $s1, $s2, if_centipede_left_boundary
-				j moving_centipede_left # moves the centipede left
+				jal moving_centipede_left # moves the centipede left
 				finish_centipede_left_update: addi, $s1, $s1, 1 #after moving the centipede left, we move back to this spot 
 				j left_movement_while_loop	
 		
@@ -214,22 +214,26 @@ update_centipede_down_left:
 		li $t5, 0
 		# while k < j:
 		update_left_while_loop:
-			beq $t5, $s2, update_left_variables
+			# if(k == j) branch out 
+			beq $t5, $s2, end_left_while_loop
 			# centipede_dir_array[k] = 0
 			la $a2, centipedDirection
 			sll $t7, $t5, 2
 			add $a2, $a2, $t7
 			sw $zero, 0($a2)
+			# k += 1
 			addi $t5, $t5, 1
-			j update_left_while_loop
-		
-	update_left_variables:
-		addi $s1, $s1, 1
-		addi $s2, $s2, 1
+			j update_left_while_loop # loop back to the start 
+		end_left_while_loop:
+			addi $s1, $s1, 1
+			addi $s2, $s2, 1
+			j update_variables_left_while_loop	
+	update_variables_left_while_loop:
 		addi $s4, $s4, 1
-		jal move_centipede_left 
+		addi $sp, $sp, -4 # Move the stack pointer one point downwards from where it is currently pointing (pop) 
+		sw $ra, 0($sp) # Push the contents of the current instruction to the top of the stack
+		jal moving_centipede_left 
 		j start_for_loop_update_left 
-		
 	end_for_loop_update_left:
 		j while_init_centipede_movement
 		
@@ -301,14 +305,12 @@ moving_centipede_left:
 		j while_move_centipede_left
 			
 	end_left: jal disp_centiped # after displaying the centipede, move back to the for loop
-		  j finish_centipede_left_update
-	     # pop a word off the stack and move the stack pointer
-	     #lw $ra, 0($sp)
-	     #addi $sp, $sp, 4
-	     #jr $ra
+		  #j finish_centipede_left_update
+	     	  # pop a word off the stack and move the stack pointer
+	     	  lw $ra, 0($sp)
+	     	  addi $sp, $sp, 4
+	     	  jr $ra
 	     
-	
-
 
 #moves the centipede down when it is at a right boundary 
 update_centipede_down_right:		
