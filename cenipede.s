@@ -91,11 +91,53 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	addi $a3, $a3, -1	 # decrement $a3 by 1
 	bne $a3, $zero, arr_loop
 	
-	# pop a word off the stack and move the stack pointer
-	lw $ra, 0($sp)
-	addi $sp, $sp, 4
+	# Overwrite the head of the centipede with a different color 
+	# depending on whether the centipede is moving to the right or to the left, the head we repaint will be a different color 
+	# Registers available after the above code has executed: $a3 = 1, $a1 = -1, $a2(centipedDirection), $t1(first term of centipedDirection), $t5 (color yellow), $t2 (displayAddress), $t3 (last term of centipedDirection), $t4.
+
+	lw $t2, displayAddress # store display address within register $t2
 	
-	jr $ra
+	la $a2, centipedDirection # store address of centipedDirection array 
+	la $a1, centipedLocation 
+	
+	# load the first and last terms of the centipede dir array into seperate registers 
+	lw $t1, 0($a2)	# contains the first term of the centipedDirection array
+	lw $t3, 36($a2) # contains the last term of the centipedDIrection array 
+	
+	li $a3, 1 # comparison registers  
+	li $s6, -1
+	
+	# choose a register, and store the color of the centipede head
+	li $t5, 0xffff00 
+	
+	# load in the address of the centipede direction array
+	la $t4, centipedLocation
+	
+	beq $t1, $a3, centipede_moving_right # if first term of centipede direction array is equal to 1, branch to centipede_moving_right
+	beq $t3, $s6, centipede_moving_left  # if last term of centipede direction array equals -1, branch to centipede_moving_left 
+	
+	centipede_moving_right:
+		# retrieve the last value of the centipede location array 
+		lw $s5, 36($a1) # register $s5 contains the value of the head of the centipede
+		sll $s5, $s5, 2 # multiply this value by 4, for byte offset 
+		add $t2, $t2, $s5 # add to display address to figure out wihch value to overwrite with the color  
+		sw $t5, 0($t2) # store the value of yellow within this register, so that the head is colored yellow
+		j finish_disp_centiped
+		
+	centipede_moving_left:
+		lw $s5, 0($a1) # register $t8 contains the value of the head of the centipede
+		sll $s5, $s5, 2 # multiply this value by 4, for byte offset 
+		add $t2, $t2, $s5 # add to display address to figure out wihch value to overwrite with the color  
+		sw $t5, 0($t2) # store the value of yellow within this register, so that the head is colored yellow
+		j finish_disp_centiped
+	
+	
+	# pop a word off the stack and move the stack pointer
+	finish_disp_centiped:
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4
+	
+		jr $ra
 
 
 # main function that controls the zig zag movement of the centipede 
@@ -131,21 +173,21 @@ init_centipede_movement:
 		# for loops to check which boundary the centipede head is currently falling under
 		
 		# check to see if centipede head is at the left boundary 
-		check_left_boundary: add $t3, $zero, $zero
-		      		     addi $t4, $t4, 992
-		      		     addi $t5, $t5, 0
-		      		     addi $t6, $t6, 31
-		start_check_left_boundary: beq $t3, $t2, if_centipede_left_boundary
-		       			   beq $t5, $t6, check_right_boundary  
-		update_variables_left: addi $t3, $t3, 32
-		        	       addi $t5, $t5, 1
-		        	       j start_check_left_boundary
+		#check_left_boundary: add $t3, $zero, $zero
+		#      		     addi $t4, $t4, 992
+		#      		     addi $t5, $t5, 0
+		#      		     addi $t6, $t6, 31
+		#start_check_left_boundary: beq $t3, $t2, if_centipede_left_boundary
+		 #      			   beq $t5, $t6, check_right_boundary  
+		#update_variables_left: addi $t3, $t3, 32
+		#        	       addi $t5, $t5, 1
+		#       	       j start_check_left_boundary
 		
 		# check to see if the centipede head is at the right boundary
 		check_right_boundary: addi $t3, $zero, 31
 		      		      addi $t4, $t4, 1023
-		      		      addi $t5, $t5, 0
-		      		      addi $t6, $t6, 31
+		      		      li $t5, 0
+		      		      li $t6, 31
 		start_check_right_boundary: beq $t3, $t2, if_centipede_right_boundary
 		       			    beq $t5, $t6, else_init_centipede_movement # left and right boundaries are checked, centipede head is not there, so we continue movement  
 		update_variables_right: addi $t3, $t3, 32
@@ -182,6 +224,7 @@ init_centipede_movement:
 
 		#if centipede head has reached the bottom (leftmost part of bottom row or rightmost part of bottom row)
 		if_centipede_bottom:
+			
 		
 		
 		#else move the centipede accoring to the value within direction array
