@@ -235,9 +235,35 @@ update_centipede_down_left:
 		jal moving_centipede_left 
 		j start_for_loop_update_left 
 	end_for_loop_update_left:
+		jal set_movement_right # sets all the values of the centipedDirection array to 1, so that centipede is moving right
 		j while_init_centipede_movement
 		
-		
+# changes all the entries of the centipede movement array to 1, so that the centipede is moving right 
+set_movement_right:
+	# load in registers with value 0 and 10, to represent iterating through each of the entries 
+	# of the centipedeDirection array
+	li $t0, 0
+	li $t1, 10
+	li $t3, 1
+	
+	# while loop to set all the elements of direction array to 1
+	while_set_movement_right:
+		beq $t0, $t1, end_movement_right
+		# re-load the address so that the pointer is back at the initial element 
+		la $a2, centipedDirection
+		# multiply the current iteration element by 4 for byte offset 
+		sll $t2, $t0, 2 
+		# add this value to the centipedeDirection array, so that it is pointing to next element 
+		add $a2, $a2, $t2
+		# store a value of 1 into this position of the centipedeDirArray 
+		sw $t3, 0($a2)
+		# iterate $t0 by 1 
+		addi $t0, $t0, 1
+		# jump back to the beginning of the while loop
+		j while_set_movement_left 
+	end_movement_right:
+		jr $ra
+					
 # changes all the entries of the centipede movement array to -1, so that the centipede is moving left 
 set_movement_left:
 	# load in registers with value 0 and 10, to represent iterating through each of the entries 
