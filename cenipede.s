@@ -171,7 +171,6 @@ init_centipede_movement:
 		# check if the centipede head is at the bottom and branch to the bottom if so, if not move on to checking if it is at one of the boundaries
 		jal check_centipede_at_bottom
 		
-		 
 		   
 		# for loops to check which boundary the centipede head is currently falling under
 		
@@ -226,8 +225,24 @@ init_centipede_movement:
 			
 		#if centipede head has reached the bottom (leftmost part of bottom row or rightmost part of bottom row)
 		if_centipede_bottom:
-			jal move_centipede
-		
+			# create while loops here that will infinitely move the centipede back and forth 
+			li $s1, 0
+			li $s2, 13
+			li $s3, 0
+			li $s4, 32
+			jal set_movement_left 
+			left_movement_while_loop_bottom: 
+				beq $s1, $s2, set_array_right
+				jal moving_centipede_left # moves the centipede left
+				addi, $s1, $s1, 1 # iterate the counter by 1
+				j left_movement_while_loop_bottom
+			set_array_right: 
+				jal set_movement_right
+			right_movement_while_loop_bottom:
+				beq $s3, $s4, if_centipede_bottom
+				jal move_centipede 
+				addi $s3, $s3, 1 # iterate the counter by 1 
+				j right_movement_while_loop_bottom
 		#else move the centipede accoring to the value within direction array
 		else_init_centipede_movement:
 			jal move_centipede 
@@ -249,11 +264,11 @@ check_centipede_at_bottom:
 	lw $s0, 36($a1)
 		
 	# check if the centipede head is at the bottom and branch to the bottom if so, if not move on to checking if it is at one of the boundaries
-	beq $t2, 800, if_centipede_bottom
-	beq $s0, 800, if_centipede_bottom
+	beq $t2, 822, if_centipede_bottom
+	beq $s0, 822, if_centipede_bottom
 		
-	beq $t2, 831, if_centipede_bottom
-	beq $s0, 831, if_centipede_bottom 
+	#beq $t2, 831, if_centipede_bottom
+	#beq $s0, 831, if_centipede_bottom 
 	
 	# if centipede not found, return to where this function was called 
 	jr $ra
