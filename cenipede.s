@@ -31,15 +31,24 @@
 # .data can be thought of as the place where data is stored in memory (allocated to RAM), they are essentially where variables are stored 
 .data
 	displayAddress:	.word 0x10008000
+	mushroomColor: .word 0x00ff00
 	bugLocation: .word 814 # location of the bug blaster 
 	centipedLives : .word 3 #Stores how many lives the centipede currently has 
 	centipedLocation: .word 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 #stores where currently the centiped is within the display map 
-	centipedDirection: .word 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 #1 means all segments are moving to the right, while -1 means it is to the left 
+	centipedDirection: .word 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 #1 means all segments are moving to the right, while -1 means it is to the left
+	mushroomLocations: .word 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 # stores all the locations of the mushrooms 
+	fleaLocation: .word 0 # stores the current location of the flea 
+	bugBlastLocation: .word 0 # stores the current location of where the bug blast is (shot taken by bug blaster)
+	
+	
+	  
+	        
 .text 
 
+
 Loop:
-	jal check_keystroke
 	jal disp_centiped
+	jal init_mushroom_locations
 	jal init_centipede_movement 
 	
 	j Loop	
@@ -63,7 +72,7 @@ Exit:
 # $t5: contains the first word from centipedDirection array
 # $t8: contains the hexadecimal value of 0xffff0000 
 
-# function to display a static centiped	
+# "update" function, in charge of updating the locations of all items currently on the scrren
 disp_centiped:
 	# move stack pointer a work and push ra onto it
 	addi $sp, $sp, -4 # Move the stack pointer one point downwards from where it is currently pointing 
@@ -91,6 +100,7 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	addi $a3, $a3, -1	 # decrement $a3 by 1
 	bne $a3, $zero, arr_loop
 	
+	#### implementation to color the head of the centipede a different color 
 	# Overwrite the head of the centipede with a different color 
 	# depending on whether the centipede is moving to the right or to the left, the head we repaint will be a different color 
 	# Registers available after the above code has executed: $a3 = 1, $a1 = -1, $a2(centipedDirection), $t1(first term of centipedDirection), $t5 (color yellow), $t2 (displayAddress), $t3 (last term of centipedDirection), $t4.
@@ -130,10 +140,132 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	
 	
 	# pop a word off the stack and move the stack pointer
+	
+	# after updating the location of the centipede, check for any keyboard input, to update the location of the bug blaster 
+	jal check_keystroke
+	
+	# update location of bug blast (move it one square upwards)
+	
+	
+	
+	
+	
+	# update location of flea (move it one square downwards)
+	
+	
+	# check for collisions between bug blast and any mushroom (if so, color the spot where the bug blast collided with mushroom, black) re-color the mushrooms
+	jal redraw_mushrooms 
+	
+	# check for collisions between bug blast and centipede (if so, reduce number of centipedeLives)
+	
+	
+	# check for collisions between flea and bugBlaster (if so, put up the game over screen)
+	
+	
+	# sleep (add some delay)
+	
+	
+	
 	finish_disp_centiped:
 		lw $ra, 0($sp)
 		addi $sp, $sp, 4
 	
+		jr $ra
+
+
+# initialize the mushroom location array, by initlializing values for where the 10 mushroom locations are 
+init_mushroom_locations:
+	# variables used in the operation of the for-loop for assigning random values to each of the 10 
+	# mushroom array locations 
+	li $t0, 0
+	li $t1, 10
+	
+	# load in the address of the mushroomLocations array 
+	la $a2, mushroomLocations 
+	
+	init_mushroom_locations_for_loop: beq $t0, $t1, end_mushroom_locations_for_loop
+		# value to signify that we are generating a random integer value 
+		li $v0, 42
+		# set upper bound on register $a1
+		li $a1, 799
+		# do a syscall
+		syscall 
+		# randomly generated integer value is at $a0
+		# store random integer value into the current location of the random mushroom location array 
+		sw $a0, 0($a2)
+		# iterate $t0 by 1 value 
+		addi $t0, $t0, 1
+		#iterate the current pointer to the mushroomLocations array by 1 value 
+		addi $a2, $a2, 4
+		# jump back to the beginning for-loop 
+		j init_mushroom_locations_for_loop
+	end_mushroom_locations_for_loop:
+		# after storing the random integer values in the array, display them in the display location
+		
+		# re-load the for-loop operation variables 
+		li $t0, 0
+		li $t1, 10
+		
+		#re-load the address of the mushroomLocations array
+		la $a2, mushroomLocations 
+		
+		#load mushroom color into a register 
+		lw $t5, mushroomColor
+	
+		# load the displayAddress into a particular register 
+		lw $t3, displayAddress
+	
+		init_mushroom_display_array: beq $t0, $t1, end_mushroom_location_operation 	
+			# load a value from the mushroom display array 
+			lw $t2, 0($a2)
+			# multiply this value by 4 to accomodate byte offset 
+			sll $t2, $t2, 2
+			# add this value to the display address, for the location of the mushroom
+			add $t4, $t2, $t3
+			# store a value of green into this location of the display
+			sw $t5, 0($t4) 
+			# iterate $t0 by 1 
+			addi $t0, $t0, 1
+			# jump to next location of the mushroom display array
+			addi $a2, $a2, 4
+			# jump back to beginning of array
+			j init_mushroom_display_array
+		end_mushroom_location_operation:
+			# return to where this function was called 
+			jr $ra 
+			
+# redraw mushroom locations 
+redraw_mushrooms:
+	# re-load the for-loop operation variables 
+	li $t0, 0
+	li $t1, 10
+		
+	#re-load the address of the mushroomLocations array
+	la $a2, mushroomLocations 
+		
+	#load mushroom color into a register 
+	lw $t5, mushroomColor
+	
+	# load the displayAddress into a particular register 
+	lw $t3, displayAddress
+	
+	init_mushroom_display_array_redraw: beq $t0, $t1, end_mushroom_location_operation_redraw
+		# load a value from the mushroom display array 
+		lw $t2, 0($a2)
+		# multiply this value by 4 to accomodate byte offset 
+		sll $t2, $t2, 2
+		# add this value to the display address, for the location of the mushroom
+		add $t4, $t2, $t3
+		# store a value of green into this location of the display
+		sw $t5, 0($t4) 
+		# iterate $t0 by 1 
+		addi $t0, $t0, 1
+		# jump to next location of the mushroom display array
+		addi $a2, $a2, 4
+		# jump back to beginning of array
+		j init_mushroom_display_array_redraw
+	end_mushroom_location_operation_redraw:
+		# return to where this function was called 
 		jr $ra
 
 
@@ -176,9 +308,9 @@ init_centipede_movement:
 		
 		# check to see if centipede head is at the left boundary 
 		check_left_boundary: add $t3, $zero, $zero
-		      		     addi $t4, $zero, 992
-		      		     addi $t5, $t5, 0
-		      		     addi $t6, $t6, 31
+		      		     add $t4, $zero, 992
+		      		     li $t5, 0
+		      		     li $t6, 31
 		start_check_left_boundary: beq $t3, $s0, if_centipede_left_boundary
 		       			   beq $t5, $t6, check_right_boundary  
 		update_variables_left: addi $t3, $t3, 32
@@ -392,7 +524,7 @@ moving_centipede_left:
 	# add the centipedOffset by display address to get the exact address of the tail end of the centipede 
 	add $t1, $t7, $t6
 	
-	# store a value of black into this memory address
+	# store a value of black into this memory address (if no mushroom exists at this location, otherwise keep moving)
 	li $t9, 0x000000
 	sw $t9, 0($t1) 
 	
