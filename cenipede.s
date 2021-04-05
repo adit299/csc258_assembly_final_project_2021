@@ -195,17 +195,18 @@ update_bug_blast_location:
 	la $a3, displayAddress
 	lw $t2, 0($a3) # contains the value of the display address
 	
+	beq $t1, $zero, paint_new_location # if bugblastLocation register equals zero (first shot taken by user) do not black out previous location, just paint new location
+	beq $t1, 832, end_bug_blast_update #bugBlast has reached the end of the board, so reset the value back to zero, and terminate update
+	
+	
 	# load a value of black into a particular register 
-	
-	# black out the current location of the shot, before updating it one row upwards 
-	li $t3, 0x000000	# $t3 stores the black colour code 
-	sub $t4, $t0, $t1	# subtract the bug blast location value from the buglocation, so that $t4 stores the current blast location
-	ble $t4, 831, paint_new_location
-	sll $t4, $t4, 2		# multiply this value by 4, to accomodate for byte size 
-	add $t2, $t2, $t4	# add this value to diplay address
-	sw $t3, 0($t2)		# load in black color into this value  	
-	
-	
+	black_out_current_shot_location:
+		# black out the current location of the shot, before updating it one row upwards 
+		li $t3, 0x000000	# $t3 stores the black colour code 
+		sub $t4, $t0, $t1	# subtract the bug blast location value from the buglocation, so that $t4 stores the current blast location
+		sll $t4, $t4, 2		# multiply this value by 4, to accomodate for byte size 
+		add $t2, $t2, $t4	# add this value to diplay address
+		sw $t3, 0($t2)		# load in black color into this value  	
 	
 	paint_new_location:
 		la $a1, bugLocation
@@ -220,13 +221,16 @@ update_bug_blast_location:
 		sub $t4, $t0, $t1	# subtract this value from the bug blaster location, so that we get the exact spot we want to color in 
 		sll $t4, $t4, 2		# multiply this value by 4, to accomodate for byte size 
 		add $t2, $t2, $t4	# add this value to diplay address
-		sw $t5, 0($t2)		# store white value into this new position
-		
+		sw $t5, 0($t2)		# store white value into this new position	
 		sw $t1, 0($a2)		# update bug blast memory variable with the new value 
-	
 		jr $ra 
+		
+	end_bug_blast_update:
+		sw $zero, 0($a2) #reset bugBlast value back to zero
+		la $a1, isBugBlast # load in address of the isBugBlast memory location value 
+		sw $zero, 0($a1) # store a value of zero into the isBugBlast memory location to signify end of shot 
+		jr $ra
 	
-
 # initialize the mushroom location array, by initlializing values for where the 10 mushroom locations are 
 init_mushroom_locations:
 	# variables used in the operation of the for-loop for assigning random values to each of the 10 
