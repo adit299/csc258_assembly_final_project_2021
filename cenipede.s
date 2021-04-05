@@ -38,10 +38,8 @@
 	centipedDirection: .word 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 #1 means all segments are moving to the right, while -1 means it is to the left
 	mushroomLocations: .word 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 # stores all the locations of the mushrooms 
 	fleaLocation: .word 0 # stores the current location of the flea 
-	bugBlastLocation: .word 0 # stores the current location of where the bug blast is (shot taken by bug blaster)
-	
-	
-	  
+	bugBlastLocation: .word 0 # stores the current offset location of where the bug blast is (shot taken by bug blaster)
+	isBugBlast: .word 0 # boolean value which stores whether a shot taken by the user is currently travelling on the screen  
 	        
 .text 
 
@@ -144,9 +142,17 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	# after updating the location of the centipede, check for any keyboard input, to update the location of the bug blaster 
 	jal check_keystroke
 	
-	# update location of bug blast (move it one square upwards)
+	# update location of bug blast (move it one square upwards, if player has taken a shot)
 	
+	la $a1, isBugBlast # load in address of the isBugBlast memory location value 
+	lw $t0, 0($a1) # load the value of this memory location variable into register $t0  
+	beq $t0, 1, branch_update_bug_blast
+	bne $t0, 1, branch_not_update_bug_blast
 	
+	branch_update_bug_blast:
+		jal update_bug_blast_location
+	
+	branch_not_update_bug_blast:
 	
 	
 	
@@ -172,6 +178,54 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	
 		jr $ra
 
+
+
+
+# player has taken a shot, so updates the location of this particular shot, and if top most boundary is reached, finishes the shot 
+update_bug_blast_location:
+	# load in the current value of the bug blaster 
+	la $a1, bugLocation
+	lw $t0, 0($a1) # contains the current location of the bug blaster 
+	
+	# load in the current value of the bug blast location
+	la $a2, bugBlastLocation
+	lw $t1, 0($a2) # contains the current location of the bug blast (offset value)
+	
+	# load in the display address
+	la $a3, displayAddress
+	lw $t2, 0($a3) # contains the value of the display address
+	
+	# load a value of black into a particular register 
+	
+	# black out the current location of the shot, before updating it one row upwards 
+	li $t3, 0x000000	# $t3 stores the black colour code 
+	sub $t4, $t0, $t1	# subtract the bug blast location value from the buglocation, so that $t4 stores the current blast location
+	ble $t4, 831, paint_new_location
+	sll $t4, $t4, 2		# multiply this value by 4, to accomodate for byte size 
+	add $t2, $t2, $t4	# add this value to diplay address
+	sw $t3, 0($t2)		# load in black color into this value  	
+	
+	
+	
+	paint_new_location:
+		la $a1, bugLocation
+		lw $t0, 0($a1) # contains the current location of the bug blaster 
+	
+		la $a3, displayAddress	#reset the display address value 
+		lw $t2, 0($a3) 
+	
+		li $t5, 0xffffff # store the white value into a register 
+	
+		addi $t1, $t1, 32 	# add 32 to the value of the bug blast location, to move it one row upwards 
+		sub $t4, $t0, $t1	# subtract this value from the bug blaster location, so that we get the exact spot we want to color in 
+		sll $t4, $t4, 2		# multiply this value by 4, to accomodate for byte size 
+		add $t2, $t2, $t4	# add this value to diplay address
+		sw $t5, 0($t2)		# store white value into this new position
+		
+		sw $t1, 0($a2)		# update bug blast memory variable with the new value 
+	
+		jr $ra 
+	
 
 # initialize the mushroom location array, by initlializing values for where the 10 mushroom locations are 
 init_mushroom_locations:
@@ -199,6 +253,8 @@ init_mushroom_locations:
 		addi $a2, $a2, 4
 		# jump back to the beginning for-loop 
 		j init_mushroom_locations_for_loop
+	
+	# refactored into own function, eliminate this code if time permits 
 	end_mushroom_locations_for_loop:
 		# after storing the random integer values in the array, display them in the display location
 		
@@ -709,6 +765,11 @@ respond_to_j:
 	
 	beq $t1, 800, skip_movement # prevent the bug from getting out of the canvas
 	addi $t1, $t1, -1	# move the bug one location to the right
+	
+	# update the value of the bugLocation variable
+	la $t0, bugLocation	# load the address of buglocation from memory
+	sw $t1, 0($t0)		# load the current location of bugBlaster back to this memory value 
+	
 skip_movement:
 	sw $t1, 0($t0)		# save the bug location
 
@@ -743,6 +804,10 @@ respond_to_k:
 	
 	beq $t1, 831, skip_movement2 #prevent the bug from getting out of the canvas
 	addi $t1, $t1, 1	# move the bug one location to the right
+	# update the value of the bugLocation variable
+	la $t0, bugLocation	# load the address of buglocation from memory
+	sw $t1, 0($t0)		# load the current location of bugBlaster back to this memory value 
+	
 skip_movement2:
 	sw $t1, 0($t0)		# save the bug location
 
@@ -765,6 +830,13 @@ respond_to_x:
 	sw $ra, 0($sp)
 	
 	addi $v0, $zero, 3
+	
+	li $t0, 1 # load in a value of 1 into a chosen register 
+	
+	la $a3, isBugBlast # load in the address for boolean value of whether a bug blast is currently active 
+	
+	sw $t0, 0($a3) # store the value of 1 into isBugBlast to signify that the player has taken a shot  
+	
 	
 	# pop a word off the stack and move the stack pointer
 	lw $ra, 0($sp)
