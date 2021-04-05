@@ -32,12 +32,21 @@
 .data
 	displayAddress:	.word 0x10008000
 	mushroomColor: .word 0x00ff00
+	fleaColor: .word 0x800080
+	
 	bugLocation: .word 814 # location of the bug blaster 
+	
 	centipedLives : .word 3 #Stores how many lives the centipede currently has 
 	centipedLocation: .word 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 #stores where currently the centiped is within the display map 
 	centipedDirection: .word 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 #1 means all segments are moving to the right, while -1 means it is to the left
+	
 	mushroomLocations: .word 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 # stores all the locations of the mushrooms 
-	fleaLocation: .word 0 # stores the current location of the flea 
+	
+	fleaLocation: .word 0 # stores the current location of the flea
+	fleaDropAmount: .word 0 # stores the offset by how much the flea is currently dropped 
+	isFleaDropped: .word 0 # boolean value which stores whether a flea is currently being dropped from top to bottom 
+	
+	
 	bugBlastLocation: .word 0 # stores the current offset location of where the bug blast is (shot taken by bug blaster)
 	isBugBlast: .word 0 # boolean value which stores whether a shot taken by the user is currently travelling on the screen  
 	        
@@ -154,15 +163,13 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	
 	branch_not_update_bug_blast:
 	
-	
-	
 	# update location of flea (move it one square downwards)
-	
+	jal drop_flea 
 	
 	# check for collisions between bug blast and any mushroom (if so, color the spot where the bug blast collided with mushroom, black) re-color the mushrooms
 	jal redraw_mushrooms 
 	
-	# check for collisions between bug blast and centipede (if so, reduce number of centipedeLives)
+	# check for collisions between bug blast and centipede (if so, reduce number of centipedeLives):
 	
 	
 	# check for collisions between flea and bugBlaster (if so, put up the game over screen)
@@ -178,9 +185,83 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	
 		jr $ra
 
+# drops a flea from a random point in the topmost part of the board 
+drop_flea:
+	# load in the isDroppedFlea memory variable and the flea location memory variable
+	la $a1, isFleaDropped
+	lw $t1, 0($a1) # $t1 now contains the isFleaDropped variable 
+	
+	la $a2, fleaLocation 
+	lw $t2, 0($a2) # $t2 now contains the fleaLocation variable 
+	
+	la $a3, fleaDropAmount 
+	lw $t3, 0($a3) # $t3 contains the offset of the amount the flea has currently been dropped 
+	
+	addi $t4, $zero, 1 # set $t4 to have the value 1
 
-
-
+	
+	la $t6, fleaColor # load in the address if the flea color 
+	lw $t7, 0($t6) # load in the value into $t7
+	  
+	beq $t1, $zero, initFleaLocation # if no flea is currently being dropped, initialize one at a random spot 
+	beq $t1, $t4, updateFleaLocation # otherwise, update the current flea being dropped by one spot down  
+	
+	# means there is currently no flea being dropped, so initialize a flea at a random spot at the top of the board 
+	initFleaLocation:	
+		la $a0, displayAddress
+		lw $t5, 0($a0) # load in the value for the diplay address in register in $t5
+		
+		la $a2, fleaLocation # load the address of the fleaLocation variable 
+		# generate a random integer between 0 to 31 
+		# value to signify that we are generating a random integer value 
+		li $v0, 42
+		# set upper bound on register $a1
+		li $a1, 31
+		# do a syscall
+		syscall
+		# random integer is stored within the register $a0 
+		sw $a0, 0($a2) #store the random integer within the memory location for "fleaLocation" 
+		lw $t2, 0($a2) #after storing it in memory, re-retrieve it and store it in register $t2, it now contains the location of the flea 
+		
+		la $a1, isFleaDropped
+				
+		# color in the location of the flea
+		sll $t2, $t2, 2 # multiply the random value by 4 to accomodate byte offset 
+		add $t5, $t5, $t2 # add the value to display address 
+		sw $t7, 0($t5) # store the purple value at this point to signify that a flea has been initialized 
+		
+		sw $t4, 0($a1) # store the value 1 into the isFleaDropped value to signify that a flea has been dropped 
+		
+		j end_drop_flea # finish initializing the flea, so we can exit the function 
+		
+	# otherwise, there is a flea currently being dropped, so update it one spot downwards from where it currently is 
+	updateFleaLocation:	
+		la $a0, displayAddress
+		lw $t5, 0($a0) # load in the value for the diplay address in register in $t5
+		
+		# black out the current location of the flea 
+		li $s1, 0x000000 # store value of zero into register $s1 
+		add $s0, $t2, $t3 # add the values of the flea location and the flea drop amount, to determine the current flea location
+		sll $s0, $s0, 2 #multiply this value by 4 to accomodate for byte offset 
+		add $t5, $t5, $s0 # add the value to the displayAddress  
+		sw $t7, 0($t5) # store a value of black here, so current flea location is blacked out 
+		
+		# update the flea location at the new spot (paint new spot purple)
+		la $a3, fleaDropAmount 
+		lw $t3, 0($a3) # $t3 contains the offset of the amount the flea has currently been dropped
+		
+		addi $t3, $t3, 32 # add 32 to the current fleaDropAmount 
+		sw $t3, 0($a3) # store this value back into the flea drop amount memory location 
+		  
+		add $s0, $t2, $t3 # add the values of the flea location and the flea drop amount, to determine the current flea location
+		sll $s0, $s0, 2 #multiply this value by 4 to accomodate for byte offset 
+		add $t5, $t5, $s0 # add the value to the displayAddress
+		
+		sw $t7, 0($t5) # store the purple value at this point to signify that a flea has been initialized 
+		
+	end_drop_flea:
+		jr $ra 
+	
 # player has taken a shot, so updates the location of this particular shot, and if top most boundary is reached, finishes the shot 
 update_bug_blast_location:
 	# load in the current value of the bug blaster 
