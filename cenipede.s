@@ -34,6 +34,11 @@
 	mushroomColor: .word 0x00ff00
 	fleaColor: .word 0xff00ff
 	
+	C_left_side: .word 386, 418, 450, 482, 514, 546, 578, 610, 642, 674
+	C_bottom: .word 675, 676, 677, 678, 679
+	C_top: .word 387, 388, 389, 390, 391
+	
+	
 	centipedLives : .word 3 #Stores how many lives the centipede currently has 
 	centipedLocation: .word 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 #stores where currently the centiped is within the display map 
 	centipedDirection: .word 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 #1 means all segments are moving to the right, while -1 means it is to the left
@@ -164,12 +169,12 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	# update location of flea (move it one square downwards)
 	jal drop_flea 
 	
-	#heck for collisions between bug blast and any mushroom (if so, color the spot where the bug blast collided with mushroom, black) re-color the mushrooms
+	#check for collisions between bug blast and any mushroom (if so, color the spot where the bug blast collided with mushroom, black) re-color the mushrooms
 	jal check_collision_bug_blast_mushroom
 	jal redraw_mushrooms 
 	
 	# check for collisions between bug blast and centipede (if so, reduce number of centipedeLives):
-	#jal check_collision_bug_blast_centipede
+	jal check_collision_bug_blast_centipede
 	
 	# check for collisions between flea and bugBlaster (if so, put up the game over screen)
 	
@@ -223,24 +228,124 @@ check_collision_bug_blast_mushroom:
   		li $t6, 992
   		sw $t6, 0($a1) # store a value of 992 at this point in the mushroom display array, to move the mushroom away to bottom right of screen
   			       # TODO: lineup the mushrooms so that they are like a score for the user 
-  		
   		la $t7, displayAddress # load in the display address 
   		lw $t8, 0($t7) # register $t8 now contains the display address
-  		
   		sll $t2, $t2, 2 #multiply register t2 by 4 to accomodate byte offset 
-  		
   		add $t8, $t8, $t2 #this register now contains the display address of the particular mushroom
-  		
   		li $t9, 0x000000 #store black into this register 
-  		
   		sw $t9, 0($t8) # store black at this particular display addres point 
-  		
   		sw $zero 0($a0) # store a value of zero for boolean value isBugBlast to signify end of the shot  
-  		
   		sw $zero, 0($a3) # set bug blast location back to zero 	
   	
   	no_bug_blast_mushroom_collision_detected:
   		jr $ra
+ 
+check_collision_bug_blast_centipede:
+	# load in the centipede locations array 
+	la $a1, centipedLocation
+	
+	# load in the bug blaster location value
+	la $a2, bugLocation
+	lw $t0, 0($a2) #t0 now contains the bug blaster location value 
+	
+	# load in the bug blaster location offset value 
+	la $a3, bugBlastLocation
+	lw $t1, 0($a3) #t1 now contains the bug blast location offset value 
+	
+	# load in the is bug blast boolean value
+	la $a0, isBugBlast 
+
+ 	# subtract bugLocation minus the bugBlast offset value so that $t2 now contains the location of the bug blast 
+  	sub $t2, $t0, $t1
+  	
+  	# iterate through the centipedLocations 
+  	li $t3, 0
+  	li $t4, 10
+  	
+  	# if we iterate through all locations, no collision has been detected 
+  	start_bug_blast_centipede_collision: beq $t3, $t4, no_bug_blast_centipede_collision_detected
+  					    lw $t5, 0($a1) # load the location of the current mushroom being iterated 
+  					    beq $t5, $t2, bug_blast_centipede_collision_detected # a collision has been detected between bug blast and mushroom
+  					    addi $a1, $a1, 4 # iterate the mushroom location pointer to next element
+  					    addi $t3, $t3, 1 # add 1 to the iteration counter variable 
+  					    j start_bug_blast_centipede_collision
+  		
+  	bug_blast_centipede_collision_detected:
+  		la $t7, displayAddress # load in the display address 
+  		lw $t8, 0($t7) # register $t8 now contains the display address
+  		sll $t2, $t2, 2 #multiply register t2 by 4 to accomodate byte offset 
+  		add $t8, $t8, $t2 #this register now contains the display address of the particular centipede part that was shot
+  		li $t9, 0xff0000 #store red into this register 
+  		sw $t9, 0($t8) # store red at this particular display addres point siginifying the centipede part  
+  		sw $zero 0($a0) # store a value of zero for boolean value isBugBlast to signify end of the shot  
+  		sw $zero, 0($a3) # set bug blast location back to zero 	
+  		lw $t6, centipedLives # load into a register the number of lives the centipede has 
+  		subi $t6, $t6, 1 # reduce the centipede lives by one 
+  		beq $t6, $zero, game_winner_screen # if centipede lives is 0, player has won
+  		sw $t6, centipedLives # otherwise, update the number of centipede lives 
+  		
+  	
+  	no_bug_blast_centipede_collision_detected:
+  		jr $ra
+ 
+ 
+game_winner_screen:
+	# load in all the arrays containing the locations of the various parts of the "c" letter
+	la $a0, C_left_side
+	la $a1, C_top
+	la $a2, C_bottom 
+	
+	# load registers with values 0, 5, 10. Used for iterating over the array values 
+	li $t0, 0
+	li $t1, 5
+	li $t2, 10
+	
+	# load a register with a gold color
+	li $t3, 0xFFDF00
+	
+	# load the display address
+	lw $t4, displayAddress
+	
+	# iterate over the C_left_side elements
+	print_c_left_side: beq $t0, $t2, print_c_bottom_reset
+			   lw $t5, 0($a0) # retrieve element from the C_left_side array
+			   sll $t5, $t5, 2 # multiply it by 4 for byte offset 
+			   add $t4, $t4, $t5 # add it to the display address
+			   sw $t3, 0($t4) # store the gold color there 
+			   addi $t0, $t0, 1 # iterate $t0 by 1 
+			   
+			   j print_c_left_side
+			   
+	print_c_bottom_reset: lw $t4, displayAddress
+			      li $t0, 0
+			      
+	print_c_bottom:    beq $t0, $t1, print_c_top_reset
+			   lw $t5, 0($a2) # retrieve element from the C_bottom array
+			   sll $t5, $t5, 2 # multiply it by 4 for byte offset 
+			   add $t4, $t4, $t5 # add it to the display address
+			   sw $t3, 0($t4) # store the gold color there 	
+			   addi $t0, $t0, 1 # iterate $t0 by 1 
+			   j print_c_bottom
+			   
+       print_c_top_reset: lw $t4, displayAddress
+			  li $t0, 0
+			  
+	print_c_top: beq $t0, $t1, finish_winner_screen_print
+			   lw $t5, 0($a1) # retrieve element from the C_bottom array
+			   sll $t5, $t5, 2 # multiply it by 4 for byte offset 
+			   add $t4, $t4, $t5 # add it to the display address
+			   sw $t3, 0($t4) # store the gold color there 
+			   addi $t0, $t0, 1 # iterate $t0 by 1 
+			   j print_c_top
+					   
+	finish_winner_screen_print:
+		jal check_keystroke # after printing, wait for the user to press the "s" button to retry 
+	j finish_winner_screen_print
+
+game_over_screen:
+	jal check_keystroke
+	j game_over_screen
+	 
 
 # drops a flea from a random point in the topmost part of the board 
 drop_flea:
@@ -510,9 +615,11 @@ init_centipede_movement:
 
 
 	# main centipede movement while loop
-	while_init_centipede_movement: beqz $t1, end_init_centipede_movement # if centipede lives is at 0, its game over, otherwise keep moving it 
+	while_init_centipede_movement: 
 		# load the centipede lives value stored in RAM to a function register value 
 		lw $t1, centipedLives
+		beqz $t1, end_init_centipede_movement # if centipede lives is at 0, its game over, otherwise keep moving it 
+		
 	
 		# load in the address of the location of the head of the centipede
 		la $a1, centipedLocation
@@ -606,7 +713,7 @@ init_centipede_movement:
 		j while_init_centipede_movement
 	
 	end_init_centipede_movement:
-		# game over screen?
+		j game_over_screen
 
 # checks if the centipede is at the bottom of the screen
 check_centipede_at_bottom:
