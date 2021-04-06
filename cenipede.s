@@ -191,17 +191,7 @@ drop_flea:
 	la $a1, isFleaDropped
 	lw $t1, 0($a1) # $t1 now contains the isFleaDropped variable 
 	
-	la $a2, fleaLocation 
-	lw $t2, 0($a2) # $t2 now contains the fleaLocation variable 
-	
-	la $a3, fleaDropAmount 
-	lw $t3, 0($a3) # $t3 contains the offset of the amount the flea has currently been dropped 
-	
-	addi $t4, $zero, 1 # set $t4 to have the value 1
-
-	
-	la $t6, fleaColor # load in the address if the flea color 
-	lw $t7, 0($t6) # load in the value into $t7
+	li $t4, 1 # set $t4 to have the value 1
 	  
 	beq $t1, $zero, initFleaLocation # if no flea is currently being dropped, initialize one at a random spot 
 	beq $t1, $t4, updateFleaLocation # otherwise, update the current flea being dropped by one spot down  
@@ -237,14 +227,23 @@ drop_flea:
 	# otherwise, there is a flea currently being dropped, so update it one spot downwards from where it currently is 
 	updateFleaLocation:	
 		la $a0, displayAddress
-		lw $t5, 0($a0) # load in the value for the diplay address in register in $t5
+		lw $t5, 0($a0) # load in the value for the diplay address in register $t5
 		
+		la $a2, fleaLocation 
+		lw $t2, 0($a2) # $t2 now contains the fleaLocation variable 
+	
+		la $a3, fleaDropAmount 
+		lw $t3, 0($a3) # $t3 contains the offset of the amount the flea has currently been dropped 
+			
 		# black out the current location of the flea 
-		li $s1, 0x000000 # store value of zero into register $s1 
-		add $s0, $t2, $t3 # add the values of the flea location and the flea drop amount, to determine the current flea location
-		sll $s0, $s0, 2 #multiply this value by 4 to accomodate for byte offset 
-		add $t5, $t5, $s0 # add the value to the displayAddress  
-		sw $t7, 0($t5) # store a value of black here, so current flea location is blacked out 
+		li $t4, 0x000000 # store value of black into register $t4 
+		add $t6, $t2, $t3 # add the values of the flea location and the flea drop amount, to determine the current flea location
+		sll $t6, $t6, 2 #multiply this value by 4 to accomodate for byte offset 
+		add $t5, $t5, $t6 # add the value to the displayAddress  
+		sw $t4, 0($t5) # store a value of black here, so current flea location is blacked out 
+		
+		la $a0, displayAddress
+		lw $t5, 0($a0) # re-load in the value for the diplay address in register $t5
 		
 		# update the flea location at the new spot (paint new spot purple)
 		la $a3, fleaDropAmount 
@@ -253,11 +252,15 @@ drop_flea:
 		addi $t3, $t3, 32 # add 32 to the current fleaDropAmount 
 		sw $t3, 0($a3) # store this value back into the flea drop amount memory location 
 		  
-		add $s0, $t2, $t3 # add the values of the flea location and the flea drop amount, to determine the current flea location
-		sll $s0, $s0, 2 #multiply this value by 4 to accomodate for byte offset 
-		add $t5, $t5, $s0 # add the value to the displayAddress
+		add $t6, $t2, $t3 # add the values of the flea location and the flea drop amount, to determine the current flea location
+		sll $t6, $t6, 2 #multiply this value by 4 to accomodate for byte offset 
+		add $t5, $t5, $t6 # add the value to the displayAddress
 		
-		sw $t7, 0($t5) # store the purple value at this point to signify that a flea has been initialized 
+		
+		la $t8, fleaColor # load in the address of the flea color 
+		lw $t9, 0($t8) # load in the value into $t9
+		
+		sw $t9, 0($t5) # store the purple value at this point to signify that a flea has been initialized 
 		
 	end_drop_flea:
 		jr $ra 
