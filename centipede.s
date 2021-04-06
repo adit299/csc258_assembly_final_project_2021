@@ -18,7 +18,8 @@
 #
 # Which approved additional features have been implemented?
 # (See the project handout for the list of additional features)
-# 1. mushroom dies if hit 
+# 1. mushroom breaks if hit (moves to lower right corner, was planning on having them lined
+# up like a score, but did not get a chance to implement)
 # 2. 
 # 3. 
 # 
