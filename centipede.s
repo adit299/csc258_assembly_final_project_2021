@@ -14,14 +14,14 @@
 #
 # Which milestone is reached in this submission?
 # (See the project handout for descriptions of the milestones)
-# - Milestone 1/2/3/4/5 (choose the one the applies)
+# - Milestone 3 (choose the one the applies)
 #
 # Which approved additional features have been implemented?
 # (See the project handout for the list of additional features)
-# 1. (fill in the feature, if any)
-# 2. (fill in the feature, if any)
-# 3. (fill in the feature, if any)
-# ... (add more if necessary)
+# 1. mushroom dies if hit 
+# 2. 
+# 3. 
+# 
 #
 # Any additional information that the TA needs to know:
 # - (write here, if any)
@@ -352,6 +352,9 @@ check_collision_bug_blast_centipede:
  
 # Prints a giant yellow C and gives the user opportunity to quit the game 
 game_winner_screen:
+	#blackout the screen 
+	jal blackout_screen
+	
 	# load in all the arrays containing the locations of the various parts of the "c" letter
 	la $a0, C_left_side
 	la $a1, C_top
@@ -375,6 +378,8 @@ game_winner_screen:
 			   add $t4, $t4, $t5 # add it to the display address
 			   sw $t3, 0($t4) # store the gold color there 
 			   addi $t0, $t0, 1 # iterate $t0 by 1 
+			   addi $a0, $a0, 4 # move to the next array element
+			   lw $t4, displayAddress #reset the display address back to its original value 
 			   
 			   j print_c_left_side
 			   
@@ -387,10 +392,12 @@ game_winner_screen:
 			   add $t4, $t4, $t5 # add it to the display address
 			   sw $t3, 0($t4) # store the gold color there 	
 			   addi $t0, $t0, 1 # iterate $t0 by 1 
+			   addi $a2, $a2, 4 # move to the next array element 
+			   lw $t4, displayAddress #reset the display address back to its original value 
 			   j print_c_bottom
 			   
-       print_c_top_reset: lw $t4, displayAddress
-			  li $t0, 0
+        print_c_top_reset: lw $t4, displayAddress
+			   li $t0, 0
 			  
 	print_c_top: beq $t0, $t1, finish_winner_screen_print
 			   lw $t5, 0($a1) # retrieve element from the C_bottom array
@@ -398,26 +405,81 @@ game_winner_screen:
 			   add $t4, $t4, $t5 # add it to the display address
 			   sw $t3, 0($t4) # store the gold color there 
 			   addi $t0, $t0, 1 # iterate $t0 by 1 
+			   addi $a1, $a1, 4 # move to the next array element 
+			   lw $t4, displayAddress #reset the display address back to its original value 
 			   j print_c_top
 					   
 	finish_winner_screen_print:
-		jal check_keystroke # after printing, wait for the user to press the "s" button to retry 
+		jal check_keystroke # after printing, wait for the user to press the "s" button to quit game and retry 
 	j finish_winner_screen_print
 
 # prints a giant red L and gives the user opportunity to quit the game to retry again 
 game_over_screen:
-	jal check_keystroke
-	j game_over_screen
+	#blackout the screen 
+	jal blackout_screen
+	
+	# load in all the arrays containing the locations of the various parts of the "c" letter
+	la $a0, C_left_side
+	la $a1, C_top
+	la $a2, C_bottom 
+	
+	# load registers with values 0, 5, 10. Used for iterating over the array values 
+	li $t0, 0
+	li $t1, 5
+	li $t2, 10
+	
+	# load a register with a red color
+	li $t3, 0xFF0000
+	
+	# load the display address
+	lw $t4, displayAddress
+	
+	# iterate over the C_left_side elements
+	print_c_left_side_loser: beq $t0, $t2, print_c_bottom_reset_loser
+			   lw $t5, 0($a0) # retrieve element from the C_left_side array
+			   sll $t5, $t5, 2 # multiply it by 4 for byte offset 
+			   add $t4, $t4, $t5 # add it to the display address
+			   sw $t3, 0($t4) # store the gold color there 
+			   addi $t0, $t0, 1 # iterate $t0 by 1 
+			   addi $a0, $a0, 4 # move to the next array element
+			   lw $t4, displayAddress #reset the display address back to its original value 
+			   j print_c_left_side_loser
+			   
+	print_c_bottom_reset_loser: lw $t4, displayAddress
+			      li $t0, 0
+			      
+	print_c_bottom_loser:    beq $t0, $t1, finish_loser_screen_print
+			   lw $t5, 0($a2) # retrieve element from the C_bottom array
+			   sll $t5, $t5, 2 # multiply it by 4 for byte offset 
+			   add $t4, $t4, $t5 # add it to the display address
+			   sw $t3, 0($t4) # store the gold color there 	
+			   addi $t0, $t0, 1 # iterate $t0 by 1 
+			   addi $a2, $a2, 4 # move to the next array element 
+			   lw $t4, displayAddress #reset the display address back to its original value 
+			   j print_c_bottom_loser
+			   
+	finish_loser_screen_print:
+		jal check_keystroke # after printing, wait for the user to press the "s" button to quit game and retry 
+	j finish_loser_screen_print
 	
 	
 # makes the screen completely black 
 blackout_screen:
-
-
-
-
-
-	 
+	lw $t0, displayAddress # retrieve the display address 
+	
+	li $t1, 0 
+	li $t2, 1023 # registers used in the while loop operation to black out the entire screen
+	
+	li $t3, 0x000000 # store the black hexadecimal value into this register 
+	
+	start_blackout_process: beq $t1, $t2, end_blackout_process
+				sw $t3, 0($t0) # store black at the current place the displayAddress is pointing to 
+				addi $t0, $t0, 4 # point at the next position in the display
+				addi $t1, $t1, 1 # iterate the dummy variable 
+				j start_blackout_process  
+	end_blackout_process: 
+				jr $ra
+	
 
 # drops a flea from a random point in the topmost part of the board 
 drop_flea:
