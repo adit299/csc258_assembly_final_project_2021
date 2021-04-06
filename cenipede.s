@@ -249,7 +249,10 @@ drop_flea:
 		la $a3, fleaDropAmount 
 		lw $t3, 0($a3) # $t3 contains the offset of the amount the flea has currently been dropped
 		
-		addi $t3, $t3, 32 # add 32 to the current fleaDropAmount 
+		addi $t3, $t3, 32 # add 32 to the current fleaDropAmount
+		
+		beq $t3, 832, flea_reached_bottom 
+		  
 		sw $t3, 0($a3) # store this value back into the flea drop amount memory location 
 		  
 		add $t6, $t2, $t3 # add the values of the flea location and the flea drop amount, to determine the current flea location
@@ -261,6 +264,19 @@ drop_flea:
 		lw $t9, 0($t8) # load in the value into $t9
 		
 		sw $t9, 0($t5) # store the purple value at this point to signify that a flea has been initialized 
+		
+		j end_drop_flea
+	
+	flea_reached_bottom:
+		la $a1, isFleaDropped
+		sw $zero, 0($a1) # since currently we have no flea being dropped 
+		
+		# set fleaLocation and fleaDropAmount to zero as well
+		la $a2, fleaLocation 
+		sw $zero, 0($a2) 
+	
+		la $a3, fleaDropAmount 
+		sw $zero, 0($a3) 
 		
 	end_drop_flea:
 		jr $ra 
