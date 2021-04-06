@@ -177,9 +177,11 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	jal check_collision_bug_blast_centipede
 	
 	# check for collisions between flea and bugBlaster (if so, put up the game over screen)
+	jal check_collision_flea_bugBlaster
 	
 	
 	# check for collisions between centipede and bugBlaster (also game over screen)
+	jal check_collision_centipede_bugBlaster 
 	
 	
 	# sleep (add some delay)
@@ -192,6 +194,44 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 		addi $sp, $sp, 4
 	
 		jr $ra
+
+
+check_collision_centipede_bugBlaster:
+	
+
+
+
+
+# check for collision between the flea and the bug blaster 
+check_collision_flea_bugBlaster:
+	# load in value of the flea location
+	lw $t0, fleaLocation
+	
+	# load in value of the flea drop offset amount 
+	lw $t1, fleaDropAmount 
+	
+	
+	add $t2, $t0, $t1 # store the flea location in $t2
+	lw $t3, bugLocation # t3 contains the value of the location of the bug blaster 
+	
+	
+	beq $t2, $t3, flea_bugBlaster_collision_detected # if flea collision detected jump there
+	j no_flea_bugBlaster_collision_detected # otherwise jump here
+	
+	flea_bugBlaster_collision_detected:
+		la $a0, fleaLocation
+		la $a1, fleaDropAmount
+		la $a2, isFleaDropped
+		
+		sw $zero, 0($a0) # reset all flea variables to zero
+		sw $zero, 0($a1)
+		sw $zero, 0($a2)
+		
+		j game_over_screen # jump to the game over screen
+	
+	no_flea_bugBlaster_collision_detected:
+		jr $ra
+	
 
 # checks if a collision between a bug blast and a mushroom occured  
 check_collision_bug_blast_mushroom:
