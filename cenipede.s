@@ -32,9 +32,7 @@
 .data
 	displayAddress:	.word 0x10008000
 	mushroomColor: .word 0x00ff00
-	fleaColor: .word 0x800080
-	
-	bugLocation: .word 814 # location of the bug blaster 
+	fleaColor: .word 0xff00ff
 	
 	centipedLives : .word 3 #Stores how many lives the centipede currently has 
 	centipedLocation: .word 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 #stores where currently the centiped is within the display map 
@@ -46,7 +44,7 @@
 	fleaDropAmount: .word 0 # stores the offset by how much the flea is currently dropped 
 	isFleaDropped: .word 0 # boolean value which stores whether a flea is currently being dropped from top to bottom 
 	
-	
+	bugLocation: .word 814 # location of the bug blaster 
 	bugBlastLocation: .word 0 # stores the current offset location of where the bug blast is (shot taken by bug blaster)
 	isBugBlast: .word 0 # boolean value which stores whether a shot taken by the user is currently travelling on the screen  
 	        
@@ -166,16 +164,21 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 	# update location of flea (move it one square downwards)
 	jal drop_flea 
 	
-	# check for collisions between bug blast and any mushroom (if so, color the spot where the bug blast collided with mushroom, black) re-color the mushrooms
+	#heck for collisions between bug blast and any mushroom (if so, color the spot where the bug blast collided with mushroom, black) re-color the mushrooms
+	jal check_collision_bug_blast_mushroom
 	jal redraw_mushrooms 
 	
 	# check for collisions between bug blast and centipede (if so, reduce number of centipedeLives):
-	
+	#jal check_collision_bug_blast_centipede
 	
 	# check for collisions between flea and bugBlaster (if so, put up the game over screen)
 	
 	
+	# check for collisions between centipede and bugBlaster (also game over screen)
+	
+	
 	# sleep (add some delay)
+	jal delay
 	
 	
 	
@@ -184,6 +187,60 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 		addi $sp, $sp, 4
 	
 		jr $ra
+
+# checks if a collision between a bug blast and a mushroom occured  
+check_collision_bug_blast_mushroom:
+	# load in the mushrooms display array
+	la $a1, mushroomLocations
+	
+	# load in the bug blaster location value
+	la $a2, bugLocation
+	lw $t0, 0($a2) #t0 now contains the bug blaster location value 
+	
+	# load in the bug blaster location offset value 
+	la $a3, bugBlastLocation
+	lw $t1, 0($a3) #t1 now contains the bug blast location offset value 
+	
+	# load in the is bug blast boolean value
+	la $a0, isBugBlast 
+
+ 	# subtract bugLocation minus the bugBlast offset value so that $t2 now contains the location of the bug blast 
+  	sub $t2, $t0, $t1
+  	
+  	# iterate through the mushroomLocations 
+  	li $t3, 0
+  	li $t4, 10
+  	
+  	# if we iterate through all locations, no collision has been detected 
+  	start_bug_blast_mushroom_collision: beq $t3, $t4, no_bug_blast_mushroom_collision_detected
+  					    lw $t5, 0($a1) # load the location of the current mushroom being iterated 
+  					    beq $t5, $t2, bug_blast_mushroom_collision_detected # a collision has been detected between bug blast and mushroom
+  					    addi $a1, $a1, 4 # iterate the mushroom location pointer to next element
+  					    addi $t3, $t3, 1 # add 1 to the iteration counter variable 
+  					    j start_bug_blast_mushroom_collision
+  		
+  	bug_blast_mushroom_collision_detected:
+  		li $t6, 992
+  		sw $t6, 0($a1) # store a value of 992 at this point in the mushroom display array, to move the mushroom away to bottom right of screen
+  			       # TODO: lineup the mushrooms so that they are like a score for the user 
+  		
+  		la $t7, displayAddress # load in the display address 
+  		lw $t8, 0($t7) # register $t8 now contains the display address
+  		
+  		sll $t2, $t2, 2 #multiply register t2 by 4 to accomodate byte offset 
+  		
+  		add $t8, $t8, $t2 #this register now contains the display address of the particular mushroom
+  		
+  		li $t9, 0x000000 #store black into this register 
+  		
+  		sw $t9, 0($t8) # store black at this particular display addres point 
+  		
+  		sw $zero 0($a0) # store a value of zero for boolean value isBugBlast to signify end of the shot  
+  		
+  		sw $zero, 0($a3) # set bug blast location back to zero 	
+  	
+  	no_bug_blast_mushroom_collision_detected:
+  		jr $ra
 
 # drops a flea from a random point in the topmost part of the board 
 drop_flea:
@@ -326,6 +383,13 @@ update_bug_blast_location:
 		jr $ra 
 		
 	end_bug_blast_update:
+		# black out the current location of the shot, before updating it one row upwards 
+		li $t3, 0x000000	# $t3 stores the black colour code 
+		sub $t4, $t0, $t1	# subtract the bug blast location value from the buglocation, so that $t4 stores the current blast location
+		sll $t4, $t4, 2		# multiply this value by 4, to accomodate for byte size 
+		add $t2, $t2, $t4	# add this value to diplay address
+		sw $t3, 0($t2)		# load in black color into this value 
+		
 		sw $zero, 0($a2) #reset bugBlast value back to zero
 		la $a1, isBugBlast # load in address of the isBugBlast memory location value 
 		sw $zero, 0($a1) # store a value of zero into the isBugBlast memory location to signify end of shot 
@@ -963,15 +1027,19 @@ respond_to_s:
 
 delay:
 	# move stack pointer a work and push ra onto it
-	addi $sp, $sp, -4
-	sw $ra, 0($sp)
+	#addi $sp, $sp, -4
+	#sw $ra, 0($sp)
 	
-	li $a2, 10000
-	addi $a2, $a2, -1
-	bgtz $a2, delay
+	#li $a2, 10000
+	#addi $a2, $a2, -1
+	#bgtz $a2, delay
 	
 	# pop a word off the stack and move the stack pointer
-	lw $ra, 0($sp)
-	addi $sp, $sp, 4
+	#lw $ra, 0($sp)
+	#addi $sp, $sp, 4
+	
+	li $v0, 32
+	li $a0, 50
+	syscall
 	
 	jr $ra
