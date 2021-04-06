@@ -197,9 +197,32 @@ arr_loop:			 # iterate over the loops elements to draw each body in the centiped
 
 
 check_collision_centipede_bugBlaster:
+	# load in the centipede locations array 
+	la $a1, centipedLocation
 	
+	# load in the bug blaster location value
+	la $a2, bugLocation
+	lw $t0, 0($a2) #t0 now contains the bug blaster location value 
 
-
+  	# iterate through the centipedLocations 
+  	li $t3, 0
+  	li $t4, 10
+  	
+  	# if we iterate through all locations, no collision has been detected 
+  	start_bugBlaster_centipede_collision: beq $t3, $t4, no_bugBlaster_centipede_collision_detected
+  					      lw $t5, 0($a1) # load the location of the current centipede part being iterated 
+  					      beq $t5, $t0, bugBlaster_centipede_collision_detected # a collision has been detected between bug blaster and centipede part 
+  					      addi $a1, $a1, 4 # iterate the centipede location pointer to next element
+  					      addi $t3, $t3, 1 # add 1 to the iteration counter variable 
+  					      j start_bugBlaster_centipede_collision
+  		
+  	bugBlaster_centipede_collision_detected:
+  		j game_over_screen
+  		
+  	
+  	no_bugBlaster_centipede_collision_detected:
+  		jr $ra
+ 
 
 
 # check for collision between the flea and the bug blaster 
@@ -324,11 +347,10 @@ check_collision_bug_blast_centipede:
   		beq $t6, $zero, game_winner_screen # if centipede lives is 0, player has won
   		sw $t6, centipedLives # otherwise, update the number of centipede lives 
   		
-  	
   	no_bug_blast_centipede_collision_detected:
   		jr $ra
  
- 
+# Prints a giant yellow C and gives the user opportunity to quit the game 
 game_winner_screen:
 	# load in all the arrays containing the locations of the various parts of the "c" letter
 	la $a0, C_left_side
@@ -382,9 +404,19 @@ game_winner_screen:
 		jal check_keystroke # after printing, wait for the user to press the "s" button to retry 
 	j finish_winner_screen_print
 
+# prints a giant red L and gives the user opportunity to quit the game to retry again 
 game_over_screen:
 	jal check_keystroke
 	j game_over_screen
+	
+	
+# makes the screen completely black 
+blackout_screen:
+
+
+
+
+
 	 
 
 # drops a flea from a random point in the topmost part of the board 
@@ -1165,6 +1197,8 @@ respond_to_s:
 	sw $ra, 0($sp)
 	
 	addi $v0, $zero, 4
+	
+	j Exit
 	
 	# pop a word off the stack and move the stack pointer
 	lw $ra, 0($sp)
